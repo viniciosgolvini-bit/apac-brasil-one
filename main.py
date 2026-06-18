@@ -1,58 +1,52 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from geopy.geocoders import Nominatim
-import pandas as pd
-import io
-import httpx
-import uvicorn
-import os
-import re
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-geolocator = Nominatim(user_agent="apac_fleet_analyst_v1", timeout=30)
-
-def limpar_endereco(texto: str):
-    return f"{re.sub(r'[-/]', ' ', str(texto))}, Brasil"
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
-
 # NOVO: Rota para processar planilha de frota
 @app.post("/processar-planilha")
 async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float = Form(...)):
     try:
         content = await file.read()
-        # Lê Excel ou CSV
+        
+        # Lê Excel ou CSV tratando o separador automaticamente
         if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(content))
+            # Tenta ler com vírgula, se falhar ou ler apenas 1 coluna, tenta ponto e vírgula
+            df = pd.read_csv(io.BytesIO(content), sep=',')
+            if len(df.columns) <= 1:
+                df = pd.read_csv(io.BytesIO(content), sep=';')
         else:
             df = pd.read_excel(io.BytesIO(content))
 
-        # Verifica se as colunas necessárias existem (Origem, Destino)
-        colunas = [c.lower() for c in df.columns]
-        if 'origem' not in colunas or 'destino' not in colunas:
-            raise HTTPException(status_code=400, detail="A planilha deve ter colunas 'Origem' e 'Destino'.")
+        # --- BLINDAGEM DO CABEÇALHO ---
+        # Remove espaços em branco, aspas simples, aspas duplas curvas e converte para minúsculo
+        def limpar_nome_coluna(col):
+            col_limpa = str(col).strip().replace("“", "").replace("”", "").replace("'", "").replace("’", "")
+            # Remove acentos básicos para garantir a validação
+            col_limpa = col_limpa.lower().replace("â", "a").replace("ã", "a").replace("á", "a").replace("ç", "c")
+            return col_limpa
+
+        # Cria um mapeamento das colunas originais para as colunas limpas
+        mapeamento_colunas = {limpar_nome_coluna(c): c for c in df.columns}
+        
+        # Valida se as colunas essenciais existem na versão limpa
+        if 'origem' not in mapeamento_colunas or 'destino' not in mapeamento_colunas:
+            raise HTTPException(
+                status_code=400, 
+                detail="A planilha deve ter colunas válidas chamadas 'Origem' e 'Destino'."
+            )
+
+        # Recupera o nome exato da coluna como ela está escrita no arquivo original do usuário
+        coluna_origem_real = mapeamento_colunas['origem']
+        coluna_destino_real = mapeamento_colunas['destino']
+        # ------------------------------
 
         # Simulação de análise de gargalos em massa
         total_viagens = len(df)
         gargalos = []
         
-        # Analisa as primeiras 5 rotas para exemplo (para não travar o GPS gratuito)
+        # Analisa as primeiras 5 rotas para exemplo (usando os nomes reais validados)
         for i, row in df.head(5).iterrows():
+            origem_texto = row[coluna_origem_real]
+            destino_texto = row[coluna_destino_real]
+            
             gargalos.append({
-                "rota": f"{row['Origem']} -> {row['Destino']}",
+                "rota": f"{origem_texto} -> {destino_texto}",
                 "status": "Inércia Comprometida" if i % 2 == 0 else "Fluxo Médio",
                 "perda_estimada": "R$ " + str(round(30 + (i * 15), 2))
             })
@@ -65,15 +59,7 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
             },
             "gargalos_identificados": gargalos
         }
+    except HTTPException as http_e:
+        raise http_e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo: {str(e)}")
-
-# Mantém a rota individual anterior (simplificada)
-@app.post("/calcular-real")
-async def calcular_real(dados: dict):
-    # (Mesma lógica de cálculo individual que já funciona)
-    pass 
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
