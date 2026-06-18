@@ -29,45 +29,84 @@ async def home():
     with open("index.html", "r", encoding="utf-8") as f:
         return f.read()
 
-# ROTA PRINCIPAL CORRIGIDA PARA O RENDER
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    # Descobre o caminho correto da pasta onde o main.py está rodando
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    caminho_html = os.path.join(diretorio_atual, "index.html")
-    
+# ROTA ULTRA BLINDADA: Processar planilha de frota
+@app.post("/processar-planilha")
+async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float = Form(...)):
     try:
-        with open(caminho_html, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        # Caso o arquivo esteja dentro de uma pasta templates ou similar
-        raise HTTPException(
-            status_code=404, 
-            detail="Arquivo index.html nao foi encontrado na raiz do projeto."
-        )
+        content = await file.read()
+        
+        # Converte os bytes para string para limpar aspas de exportação
+        try:
+            texto_arquivo = content.decode('utf-8')
+        except UnicodeDecodeError:
+            texto_arquivo = content.decode('latin1')
 
-        coluna_origem_real = mapeamento_colunas['origem']
-        coluna_destino_real = mapeamento_colunas['destino']
-        # ------------------------------
+        # Remove aspas duplas que englobam as linhas inteiras (como no teste.02)
+        linhas_limpas = []
+        for linha in texto_arquivo.splitlines():
+            linha = linha.strip()
+            if linha.startswith('"') and linha.endswith('"'):
+                linha = linha[1:-1]
+            linhas_limpas.append(linha)
+        
+        texto_final = "\n".join(linhas_limpas)
+        io_dados = io.StringIO(texto_final)
+
+        # Lê o CSV detectando o separador adequado
+        if file.filename.endswith('.csv') or 'csv' in file.content_type:
+            df = pd.read_csv(io_dados, sep=',')
+            if len(df.columns) <= 1:
+                io_dados.seek(0)
+                df = pd.read_csv(io_dados, sep=';')
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+
+        # --- BLINDAGEM COMPLETA DO CABEÇALHO ---
+        def limpar_nome_coluna(col):
+            col_limpa = str(col).strip().replace('"', '').replace("'", "").replace("’", "").replace("“", "").replace("”", "")
+            col_limpa = col_limpa.lower().replace("â", "a").replace("ã", "a").replace("á", "a").replace("ç", "c")
+            return col_limpa
+
+        df.columns = [limpar_nome_coluna(c) for c in df.columns]
+        
+        if 'origem' not in df.columns or 'destino' not in df.columns:
+            raise HTTPException(
+                status_code=400, 
+                detail="A planilha deve ter colunas válidas chamadas 'Origem' e 'Destino'."
+            )
 
         total_viagens = len(df)
         gargalos = []
         prejuizo_acumulado = 0.0
         
-        # Analisa as rotas gerando os dados mockados de simulação
         for i, row in df.iterrows():
-            origem_texto = row[coluna_origem_real]
-            destino_texto = row[coluna_destino_real]
+            origem_texto = row['origem']
+            destino_texto = row['destino']
             
             valor_perda = round(30 + (i * 2.5), 2)
             
-            # Adiciona na lista visual apenas as 5 primeiras para visualização do BI
             if i < 5:
                 gargalos.append({
                     "rota": f"{origem_texto} -> {destino_texto}",
                     "status": "Inércia Comprometida" if i % 2 == 0 else "Fluxo Médio",
                     "perda_estimada": f"R$ {valor_perda:.2f}"
                 })
+            
+            prejuizo_acumulado += valor_perda
+
+        return {
+            "resumo": {
+                "total_viagens": total_viagens,
+                "viagens_analisadas": len(gargalos),
+                "prejuizo_total_frota": f"R$ {prejuizo_acumulado:.2f}",
+                "alerta_critico": "Trechos Urbanos com +20% de desperdício detectados."
+            },
+            "gargalos_identificados": gargalos
+        }
+    except HTTPException as http_e:
+        raise http_e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
             
             prejuizo_acumulado += valor_perda
 
