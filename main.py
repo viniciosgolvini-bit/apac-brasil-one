@@ -1,43 +1,3 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from geopy.geocoders import Nominatim
-import pandas as pd
-import io
-import httpx
-import uvicorn
-import os
-import re
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-geolocator = Nominatim(user_agent="apac_fleet_analyst_v1", timeout=30)
-
-def limpar_endereco(texto: str):
-    return f"{re.sub(r'[-/]', ' ', str(texto))}, Brasil"
-
-# ROTA PRINCIPAL: Garante o carregamento do HTML no Render sem erro 500
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    caminho_html = os.path.join(diretorio_atual, "index.html")
-    try:
-        with open(caminho_html, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404, 
-            detail="Arquivo index.html não foi encontrado na raiz do projeto."
-        )
-
 # ROTA ULTRA UNIVERSAL: Aceita qualquer tipo de arquivo e formatação
 @app.post("/processar-planilha")
 async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float = Form(...)):
@@ -84,7 +44,8 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
             for sep in separadores:
                 io_dados = io.StringIO(texto_final)
                 try:
-                    df_teste = pd.read_csv(io_dados, sep=sep, seq_comments=True)
+                    # 'on_bad_lines=skip' impede o Pandas de quebrar caso encontre linhas desalinhadas
+                    df_teste = pd.read_csv(io_dados, sep=sep, on_bad_lines='skip')
                     if len(df_teste.columns) > maior_numero_colunas:
                         maior_numero_colunas = len(df_teste.columns)
                         melhor_df = df_teste
@@ -98,11 +59,8 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
 
         # --- BLINDAGEM MÁXIMA DOS NOMES DAS COLUNAS ---
         def higienizar_coluna(col):
-            # Converte para string, remove espaços nas pontas e remove aspas de qualquer tipo
             c = str(col).strip().replace('"', '').replace("'", "").replace("’", "").replace("“", "").replace("”", "")
-            # Passa para minúsculas
             c = c.lower()
-            # Remove acentos e caracteres especiais para bater com a busca
             c = c.replace("â", "a").replace("ã", "a").replace("á", "a").replace("à", "a")
             c = c.replace("ê", "e").replace("é", "e")
             c = c.replace("î", "i").replace("í", "i")
@@ -111,10 +69,8 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
             c = c.replace("ç", "c")
             return c
 
-        # Aplica a higienização no cabeçalho
         df.columns = [higienizar_coluna(c) for c in df.columns]
         
-        # Procura as colunas por aproximação ou nome exato limpo
         coluna_origem = None
         coluna_destino = None
         
@@ -136,7 +92,6 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
         prejuizo_acumulado = 0.0
         
         for i, row in df.iterrows():
-            # Converte para string e limpa aspas residuais dos dados de texto das células
             origem_texto = str(row[coluna_origem]).strip().replace('"', '').replace("'", "")
             destino_texto = str(row[coluna_destino]).strip().replace('"', '').replace("'", "")
             
@@ -165,11 +120,3 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
         raise http_e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
-
-@app.post("/calcular-real")
-async def calcular_real(dados: dict):
-    pass 
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
