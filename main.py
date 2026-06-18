@@ -120,3 +120,4 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
         raise http_e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
+        
