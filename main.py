@@ -24,12 +24,21 @@ geolocator = Nominatim(user_agent="apac_fleet_analyst_v1", timeout=30)
 def limpar_endereco(texto: str):
     return f"{re.sub(r'[-/]', ' ', str(texto))}, Brasil"
 
+# ROTA PRINCIPAL CORRIGIDA PARA O RENDER (SEM ERRO 500)
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    caminho_html = os.path.join(diretorio_atual, "index.html")
+    try:
+        with open(caminho_html, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404, 
+            detail="Arquivo index.html nao foi encontrado na raiz do projeto."
+        )
 
-# ROTA ULTRA BLINDADA: Processar planilha de frota
+# ROTA ULTRA BLINDADA CORRIGIDA (SEM DUPLICAÇÕES)
 @app.post("/processar-planilha")
 async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float = Form(...)):
     try:
@@ -107,22 +116,6 @@ async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float
         raise http_e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {str(e)}")
-            
-            prejuizo_acumulado += valor_perda
-
-        return {
-            "resumo": {
-                "total_viagens": total_viagens,
-                "viagens_analisadas": len(gargalos),
-                "prejuizo_total_frota": f"R$ {prejuizo_acumulado:.2f}", # Chave corrigida esperada pelo HTML
-                "alerta_critico": "Trechos Urbanos com +20% de desperdício detectados."
-            },
-            "gargalos_identificados": gargalos
-        }
-    except HTTPException as http_e:
-        raise http_e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo no servidor: {str(e)}")
 
 @app.post("/calcular-real")
 async def calcular_real(dados: dict):
