@@ -54,7 +54,7 @@
                     <div>
                         <h4 class="text-white font-bold text-[10px] uppercase mb-4 tracking-widest border-l-4 border-emerald-500 pl-2">Top Gargalos de Inércia</h4>
                         <div id="lista-gargalos" class="grid grid-cols-1 gap-2">
-                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -78,7 +78,7 @@
 
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
-            formData.append("consumo_padrao", parseFloat(document.getElementById('kml').value));
+            formData.append("consumo_padrao", parseFloat(document.getElementById('kml').value) || 2.5);
 
             try {
                 const res = await fetch('/processar-planilha', {
@@ -86,11 +86,14 @@
                     body: formData
                 });
                 
-                if (!res.ok) throw new Error("Erro ao processar arquivo.");
-                
                 const data = await res.json();
-
-                // Mostrar resultados
+                
+                if (!res.ok) {
+                    // Exibe a mensagem de erro específica vinda do FastAPI (ex: Colunas ausentes)
+                    throw new Error(data.detail || "Erro inesperado ao processar arquivo.");
+                }
+                
+                // Mostrar resultados de forma segura
                 document.getElementById('placeholder-bi').classList.add('hidden');
                 document.getElementById('resultado-frota').classList.remove('hidden');
                 document.getElementById('bi-status').innerText = "Análise Concluída";
@@ -101,19 +104,21 @@
                 const lista = document.getElementById('lista-gargalos');
                 lista.innerHTML = "";
                 
-                data.gargalos_identificados.forEach(g => {
-                    lista.innerHTML += `
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-emerald-500/50 transition-all">
-                            <span class="text-[11px] font-medium text-slate-300">${g.rota}</span>
-                            <div class="text-right">
-                                <span class="block text-red-500 font-black text-xs">${g.perda_estimada}</span>
-                                <span class="text-[8px] text-slate-500 uppercase">${g.status}</span>
-                            </div>
-                        </div>`;
-                });
+                if (data.gargalos_identificados && data.gargalos_identificados.length > 0) {
+                    data.gargalos_identificados.forEach(g => {
+                        lista.innerHTML += `
+                            <div class="p-4 bg-slate-900 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-emerald-500/50 transition-all">
+                                <span class="text-[11px] font-medium text-slate-300">${g.rota}</span>
+                                <div class="text-right">
+                                    <span class="block text-red-500 font-black text-xs">${g.perda_estimada}</span>
+                                    <span class="text-[8px] text-slate-500 uppercase">${g.status}</span>
+                                </div>
+                            </div>`;
+                    });
+                }
 
             } catch (e) {
-                alert("ERRO: Certifique-se que a planilha tem as colunas 'Origem' e 'Destino'.");
+                alert("Falha no processamento:\n" + e.message);
             } finally {
                 btn.innerText = "Gerar Business Intelligence";
                 btn.disabled = false;
