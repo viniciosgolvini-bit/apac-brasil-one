@@ -2,145 +2,145 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>APAC - Google Maps Route Optimizer</title>
+    <title>APAC - Realtime Traffic Anti-Waste Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-slate-900 text-white font-sans p-4">
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+<body class="bg-gray-950 text-slate-100 p-6 min-h-screen">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <div class="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 h-fit">
-            <h1 class="text-3xl font-black italic text-emerald-400 mb-2 tracking-tighter">APAC <span class="text-white font-light text-xs">MAPS OPTIMIZER</span></h1>
-            <p class="text-xs text-slate-400 mb-8 font-medium">Otimização Inteligente de Malha Logística antes/depois</p>
+        <div class="lg:col-span-4 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl h-fit">
+            <h1 class="text-2xl font-black text-amber-500 italic tracking-tighter flex items-center gap-2">
+                APAC <span class="bg-amber-500/10 text-amber-400 text-[9px] px-2 py-0.5 rounded border border-amber-500/20 font-mono">TRAFFIC MONITOR</span>
+            </h1>
+            <p class="text-[11px] text-slate-400 mt-1 mb-6">Evitando desperdício de combustível por retenção e anda-e-para urbano em tempo real.</p>
             
             <div class="space-y-4 mb-6">
                 <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Consumo Médio da Frota (Km/L)</label>
-                    <input id="kml" type="number" value="2.5" step="0.1" class="w-full p-3 bg-slate-900 rounded-xl border border-slate-700 text-sm outline-none focus:border-emerald-500">
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">Consumo da Frota (Km/L)</label>
+                    <input id="consumo" type="number" value="2.5" step="0.1" class="w-full p-3 bg-gray-950 rounded-xl border border-gray-800 text-sm focus:border-amber-500 outline-none">
                 </div>
             </div>
 
-            <div class="p-6 bg-slate-900 rounded-2xl border border-dashed border-emerald-500/30">
-                <h3 class="text-emerald-400 font-bold uppercase text-[10px] mb-4 italic tracking-widest">Carregar Planilha de Rotas</h3>
-                <input type="file" id="arquivoExcel" class="text-[10px] text-slate-500 mb-4 block w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500">
-                <button onclick="subirPlanilha()" id="btn-frota" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black text-[10px] uppercase transition shadow-lg tracking-wider">
-                    Otimizar Rotas e Custos
+            <div class="p-4 bg-gray-950 rounded-xl border border-dashed border-gray-800">
+                <label class="block text-[10px] uppercase font-bold text-amber-500 mb-3 tracking-wider">Carregar Planilha de Despacho</label>
+                <input type="file" id="planilha" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-500 cursor-pointer">
+                <button onclick="otimizarMalha()" id="btn-rodar" class="w-full mt-4 py-3.5 bg-amber-600 hover:bg-amber-500 transition text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md">
+                    Analisar Rotas em Tempo Real
                 </button>
             </div>
         </div>
 
-        <div id="relatorio-area" class="lg:col-span-8 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
-            <div id="print-content">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-                    <h2 class="text-xl font-black italic uppercase text-emerald-500">Relatório de <span class="text-white">Impacto Financeiro</span></h2>
-                    <span id="bi-status" class="text-[10px] text-slate-400 font-bold bg-slate-900 px-3 py-1 rounded uppercase tracking-widest italic">Aguardando Importação</span>
-                </div>
-
-                <div id="resultado-frota" class="hidden space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-slate-900 p-5 rounded-2xl border border-slate-700 text-center">
-                            <p class="text-[9px] text-slate-400 uppercase font-bold mb-1">Gasto Original (Antes)</p>
-                            <h4 id="bi-gasto-antes" class="text-2xl font-black text-rose-400">R$ 0,00</h4>
-                        </div>
-                        <div class="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/20 text-center">
-                            <p class="text-[9px] text-emerald-400 uppercase font-bold mb-1">Gasto Otimizado (Depois)</p>
-                            <h4 id="bi-gasto-depois" class="text-2xl font-black text-emerald-400">R$ 0,00</h4>
-                        </div>
-                        <div class="bg-blue-500/10 p-5 rounded-2xl border border-blue-500/20 text-center">
-                            <p class="text-[9px] text-blue-400 uppercase font-bold mb-1">Economia Prevista</p>
-                            <h4 id="bi-economia" class="text-2xl font-black text-blue-400">R$ 0,00</h4>
-                        </div>
-                    </div>
-
-                    <div class="p-4 bg-emerald-950/40 border border-emerald-500/20 rounded-xl text-center text-xs text-emerald-300 font-bold uppercase tracking-wide">
-                        Distância Reduzida: <span id="bi-km-salvos" class="text-white">0 km</span> através do redirecionamento de endereços.
-                    </div>
-
+        <div class="lg:col-span-8 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <div id="documento-pdf">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-4 mb-6">
                     <div>
-                        <h4 class="text-white font-bold text-[10px] uppercase mb-4 tracking-widest border-l-4 border-emerald-500 pl-2">Detalhamento por Trecho Logístico</h4>
-                        <div id="lista-gargalos" class="grid grid-cols-1 gap-3">
-                            </div>
+                        <h2 class="text-lg font-bold text-white uppercase">Relatório de Desperdício por Tráfego</h2>
+                        <p class="text-[10px] text-slate-500">Comparativo antes e depois de desvios inteligentes baseados no Google Maps</p>
+                    </div>
+                    <span id="badge-status" class="text-[9px] font-mono uppercase bg-gray-950 px-3 py-1 text-slate-400 border border-gray-800 rounded font-bold">Sem dados</span>
+                </div>
+
+                <div id="painel-resultados" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                            <span class="text-[9px] uppercase font-bold text-slate-400 block mb-1">Gasto no Trânsito Atual (Antes)</span>
+                            <div id="total-antes" class="text-xl font-black text-rose-500">R$ 0,00</div>
+                        </div>
+                        <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-900/30">
+                            <span class="text-[9px] uppercase font-bold text-emerald-400 block mb-1">Gasto em Rota Fluida (Depois)</span>
+                            <div id="total-depois" class="text-xl font-black text-emerald-400">R$ 0,00</div>
+                        </div>
+                        <div class="bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
+                            <span class="text-[9px] uppercase font-bold text-amber-400 block mb-1">Economia Líquida Recuperada</span>
+                            <div id="total-economia" class="text-xl font-black text-amber-500">R$ 0,00</div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="text-[10px] uppercase font-bold text-slate-400 tracking-wider border-l-2 border-amber-500 pl-2">Análise de Gargalos por Ponto de Retenção</h3>
+                        <div id="conteiner-trechos" class="space-y-3"></div>
                     </div>
                 </div>
 
-                <div id="placeholder-bi" class="h-64 flex items-center justify-center text-slate-600 border-2 border-dashed border-slate-700 rounded-2xl">
-                    <p class="text-xs uppercase font-bold">Nenhum arquivo enviado para otimização</p>
+                <div id="placeholder" class="h-64 flex items-center justify-center border-2 border-dashed border-gray-800 rounded-xl text-slate-600 text-xs uppercase font-bold">
+                    Aguardando upload de planilha contendo Origem e Destino...
                 </div>
             </div>
-            
-            <button onclick="baixarPDF()" class="mt-8 w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-widest transition">Exportar Relatório PDF Comercial</button>
+
+            <button onclick="gerarPDF()" class="w-full mt-6 py-2.5 bg-gray-800 hover:bg-gray-700 transition rounded-xl text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-gray-700">
+                Salvar Cópia em PDF Comercial
+            </button>
         </div>
     </div>
 
     <script>
-        async function subirPlanilha() {
-            const fileInput = document.getElementById('arquivoExcel');
-            if (!fileInput.files[0]) return alert("Por favor, selecione um arquivo de rotas.");
+        async function otimizarMalha() {
+            const input = document.getElementById('planilha');
+            if(!input.files[0]) return alert("Selecione um arquivo de frotas.");
 
-            const btn = document.getElementById('btn-frota');
-            btn.innerText = "MAPEANDO COORDENADAS MAPS...";
+            const btn = document.getElementById('btn-rodar');
+            btn.innerText = "CALCULANDO ROTAS E MATRIZ DE TRÂNSITO...";
             btn.disabled = true;
 
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-            formData.append("consumo_padrao", parseFloat(document.getElementById('kml').value) || 2.5);
+            const form = new FormData();
+            form.append("file", input.files[0]);
+            form.append("consumo_padrao", parseFloat(document.getElementById('consumo').value) || 2.5);
 
             try {
-                const res = await fetch('/processar-planilha', {
-                    method: 'POST',
-                    body: formData
-                });
-                
+                const res = await fetch('/processar-planilha', { method: 'POST', body: form });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Erro no processamento.");
                 
-                document.getElementById('placeholder-bi').classList.add('hidden');
-                document.getElementById('resultado-frota').classList.remove('hidden');
-                document.getElementById('bi-status').innerText = "Malha Otimizada";
-                
-                // Preenche os Cards Principais
-                document.getElementById('bi-gasto-antes').innerText = data.resumo.custo_antes;
-                document.getElementById('bi-gasto-depois').innerText = data.resumo.custo_depois;
-                document.getElementById('bi-economia').innerText = data.resumo.economia_total;
-                document.getElementById('bi-km-salvos').innerText = data.resumo.reducao_km;
+                if(!res.ok) throw new Error(data.detail || "Erro desconhecido");
 
-                const lista = document.getElementById('lista-gargalos');
+                document.getElementById('placeholder').classList.add('hidden');
+                document.getElementById('painel-resultados').classList.remove('hidden');
+                document.getElementById('badge-status').className = "text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded font-bold";
+                document.getElementById('badge-status').innerText = data.resumo.status_modelo;
+
+                document.getElementById('total-antes').innerText = data.resumo.custo_antes;
+                document.getElementById('total-depois').innerText = data.resumo.custo_depois;
+                document.getElementById('total-economia').innerText = data.resumo.economia_total;
+
+                const lista = document.getElementById('conteiner-trechos');
                 lista.innerHTML = "";
-                
-                data.gargalos_identificados.forEach(g => {
+
+                data.detalhes.forEach(t => {
+                    let badgesAlertas = t.alertas.map(a => `<span class="bg-gray-950 text-amber-400 text-[8px] px-2 py-0.5 rounded border border-gray-800 font-medium">${a}</span>`).join(' ');
+                    
                     lista.innerHTML += `
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                            <div>
-                                <span class="text-xs font-bold text-slate-200 block">${g.rota}</span>
-                                <span class="text-[9px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase mt-1 inline-block border border-slate-700">${g.status}</span>
+                        <div class="p-4 bg-gray-950 rounded-xl border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div class="space-y-1">
+                                <h4 class="text-xs font-bold text-white">${t.trecho}</h4>
+                                <div class="flex flex-wrap gap-1">${badgesAlertas}</div>
                             </div>
-                            <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-right ml-auto">
-                                <span class="text-[9px] text-slate-400">Kms (Antes ➔ Depois):</span>
-                                <span class="text-[10px] font-mono text-slate-300 font-bold">${g.antes_km} ➔ ${g.depois_km}</span>
-                                <span class="text-[9px] text-rose-400">Custo Antes:</span>
-                                <span class="text-xs font-black text-rose-400">${g.gasto_antes}</span>
-                                <span class="text-[9px] text-emerald-400">Custo Depois:</span>
-                                <span class="text-xs font-black text-emerald-400">${g.gasto_depois}</span>
-                                <span class="text-[9px] text-blue-400 font-bold">Economia Gerada:</span>
-                                <span class="text-xs font-black text-blue-400">${g.economia}</span>
+                            <div class="grid grid-cols-2 text-right text-[11px] gap-x-4 gap-y-0.5 font-mono ml-auto">
+                                <span class="text-slate-500">Tempo de Percurso:</span>
+                                <span class="text-slate-300">${t.tempo_antes} (Desvio: ${t.tempo_depois})</span>
+                                <span class="text-rose-400">Gasto Atual com Trânsito:</span>
+                                <span class="text-rose-400 font-bold">${t.gasto_antes}</span>
+                                <span class="text-emerald-400">Gasto Otimizado:</span>
+                                <span class="text-emerald-400 font-bold">${t.gasto_depois}</span>
+                                <span class="text-amber-500 font-bold">Desperdício Evitado:</span>
+                                <span class="text-amber-500 font-black">${t.economia}</span>
                             </div>
                         </div>`;
                 });
 
-            } catch (e) {
-                alert("Falha no Mapeamento:\n" + e.message);
+            } catch(e) {
+                alert("Erro na análise de tráfego:\n" + e.message);
             } finally {
-                btn.innerText = "Otimizar Rotas e Custos";
+                btn.innerText = "Analisar Rotas em Tempo Real";
                 btn.disabled = false;
             }
         }
 
-        function baixarPDF() {
-            const element = document.getElementById('print-content');
+        function gerarPDF() {
+            const element = document.getElementById('documento-pdf');
             html2pdf().set({
-                margin: 0.5,
-                filename: 'APAC_Otimizacao_Maps.pdf',
-                html2canvas: { scale: 2, backgroundColor: '#1e293b' },
+                margin: 0.4,
+                filename: 'APAC_Relatorio_Desperdicio_Transito.pdf',
+                html2canvas: { scale: 2, backgroundColor: '#030712' },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
             }).from(element).save();
         }
