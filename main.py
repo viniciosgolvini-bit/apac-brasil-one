@@ -29,33 +29,22 @@ async def home():
     with open("index.html", "r", encoding="utf-8") as f:
         return f.read()
 
-# ROTA CORRIGIDA: Processar planilha de frota
-@app.post("/processar-planilha")
-async def processar_planilha(file: UploadFile = File(...), consumo_padrao: float = Form(...)):
+# ROTA PRINCIPAL CORRIGIDA PARA O RENDER
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    # Descobre o caminho correto da pasta onde o main.py está rodando
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    caminho_html = os.path.join(diretorio_atual, "index.html")
+    
     try:
-        content = await file.read()
-        
-        # Lê Excel ou CSV tratando o separador automaticamente
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(content), sep=',')
-            if len(df.columns) <= 1:
-                df = pd.read_csv(io.BytesIO(content), sep=';')
-        else:
-            df = pd.read_excel(io.BytesIO(content))
-
-        # --- BLINDAGEM DO CABEÇALHO ---
-        def limpar_nome_coluna(col):
-            col_limpa = str(col).strip().replace("“", "").replace("”", "").replace("'", "").replace("’", "")
-            col_limpa = col_limpa.lower().replace("â", "a").replace("ã", "a").replace("á", "a").replace("ç", "c")
-            return col_limpa
-
-        mapeamento_colunas = {limpar_nome_coluna(c): c for c in df.columns}
-        
-        if 'origem' not in mapeamento_colunas or 'destino' not in mapeamento_colunas:
-            raise HTTPException(
-                status_code=400, 
-                detail="A planilha deve ter colunas válidas chamadas 'Origem' e 'Destino'."
-            )
+        with open(caminho_html, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        # Caso o arquivo esteja dentro de uma pasta templates ou similar
+        raise HTTPException(
+            status_code=404, 
+            detail="Arquivo index.html nao foi encontrado na raiz do projeto."
+        )
 
         coluna_origem_real = mapeamento_colunas['origem']
         coluna_destino_real = mapeamento_colunas['destino']
